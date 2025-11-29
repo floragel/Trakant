@@ -242,6 +242,13 @@ app/
 
 ---
 
+# 🙏 **Remerciement**
+
+Image by <a href="https://pixabay.com/users/oj-creator-25360413/?utm_source=link-attribution&utm_medium=referral&utm_campaign=image&utm_content=7411858">OJ-Creator</a> 
+from <a href="https://pixabay.com//?utm_source=link-attribution&utm_medium=referral&utm_campaign=image&utm_content=7411858">Pixabay</a>
+
+---
+
 # 🏁 **Conclusion**
 
 **TrakAnt** est une app mobile fun, motivante et accessible, qui transforme la discipline en un jeu visuel autour d’une colonie de fourmis.  
