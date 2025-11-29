@@ -138,7 +138,7 @@ fun MainStatsCard(userData: UserData) {
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AntPlanet(Modifier.fillMaxWidth().aspectRatio(1f))
+                AntPlanet(Modifier.fillMaxWidth().aspectRatio(1f), antNumber = "${userData.colonySize}".toInt())
                 Spacer(Modifier.height(8.dp))
                 Text("Colony: ${userData.colonySize} ants", color = TrakTextDark, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
