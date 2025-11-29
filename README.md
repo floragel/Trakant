@@ -105,18 +105,18 @@ Aucun backend n’est utilisé : l’app est **offline-first**.
 ## 🔢 **Logique XP / Level**
 
 ### XP par niveau (progression doublée)  
-\`\`\`
+```
 Level 1 = 10 XP
 Level 2 = 20 XP
 Level 3 = 40 XP
 Level 4 = 80 XP
 ...
-\`\`\`
+```
 
 ### Taille de colonie  
-\`\`\`
+```
 Colony size = level
-\`\`\`
+```
 
 
 ---
@@ -192,7 +192,7 @@ Les tests ont été réalisés sur les **téléphones mobiles réels** des membr
 
 ## 📁 Structure du projet
 
-\`\`\`
+```
 app/
  ├── src/
  │   └── main/
@@ -223,7 +223,7 @@ app/
  │              └── xml/
  │
  └── build.gradle.kts
-\`\`\`
+```
 
 ---
 
