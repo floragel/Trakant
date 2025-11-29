@@ -1,5 +1,45 @@
 package com.example.trakant
 
+
+import android.content.Intent
+import androidx.activity.compose.BackHandler
+import androidx.compose.ui.platform.LocalContext
+import androidx.activity.compose.setContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Cake
+import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
+import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.BugReport
+import androidx.compose.material3.*
+import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import kotlinx.coroutines.delay
+import kotlin.random.Random
+import kotlin.math.sqrt
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.pow
 import android.app.Application
 import android.app.DatePickerDialog
 import android.os.Bundle
@@ -845,5 +885,131 @@ fun AddQuestDialog(onDismiss: () -> Unit, onAdd: (QuestType, String?) -> Unit) {
         confirmButton = { Button(onClick = { onAdd(selectedType, note) }, colors = ButtonDefaults.buttonColors(containerColor = TrakLevelBar)) { Text("Ajouter") } },
         dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
         containerColor = TrakCreamCard
+    )
+}
+
+
+private fun randomPointInCircle(radius: Dp): Pair<Dp, Dp> {
+    val r = radius.value * sqrt(Random.nextDouble())
+    val theta = Random.nextDouble() * 2 * Math.PI
+
+    val x = r * cos(theta)
+    val y = r * sin(theta)
+
+    return x.toFloat().dp to y.toFloat().dp
+}
+
+// Planète colonie en pixel-style simplifié (vert + sol + points fourmis)
+@Composable
+fun AntPlanet(modifier: Modifier = Modifier) {
+    BoxWithConstraints(modifier) {
+        val planetRadius = maxWidth / 2
+        Box(
+            modifier = Modifier
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(TrakPlanetGrass),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+                model = ImageRequest.Builder(LocalContext.current)
+                    .data("file:///android_asset/house_lvl_1.png")
+                    .build(),
+                contentDescription = "Pixel House",
+                modifier = Modifier
+                    .align(Alignment.Center)
+            )
+            // petites "fourmis" pixel art
+            val size = 16.dp
+            for (i in 1..7) {
+                PixelAnt(i, size, planetRadius)
+            }
+        }
+    }
+}
+
+// simple helper extension to align with offset in AntPlanet
+@Composable
+private fun BoxScope.PixelAnt(
+    id: Int,
+    size: Dp,
+    planetRadius: Dp
+) {
+    val effectiveRadius = planetRadius - (size / 2)
+
+    var targetOffsetX by remember { mutableStateOf(Random.nextInt(-10, 10).dp) }
+    var targetOffsetY by remember { mutableStateOf(Random.nextInt(-10, 10).dp) }
+    var duration by remember { mutableStateOf(1000) }
+    var fadeDuration by remember { mutableStateOf(1000) }
+    val alpha = remember { Animatable(0f) }
+
+    val animatedOffsetX by animateDpAsState(
+        targetValue = targetOffsetX,
+        animationSpec = tween(durationMillis = duration),
+        label = "ant_x_$id"
+    )
+    val animatedOffsetY by animateDpAsState(
+        targetValue = targetOffsetY,
+        animationSpec = tween(durationMillis = duration),
+        label = "ant_y_$id"
+    )
+
+    LaunchedEffect(id) {
+        // Stagger ant movement starts
+        delay(id * 1500L + Random.nextLong(500))
+
+        while (true) {
+
+            // --- Ant is at center, invisible ---
+
+            // 1. Fade in at the center
+            alpha.animateTo(1f, animationSpec = tween(fadeDuration))
+
+            val speed = 10f // dp per second
+
+            // 2. Move to a random point 3 to 7 times
+            for (i in 1..Random.nextInt(3, 7)) {
+                val (randomX, randomY) = randomPointInCircle(effectiveRadius)
+                val distanceToRandom = sqrt(randomX.value.pow(2) + randomY.value.pow(2)).toFloat()
+
+                val travelDuration = ((distanceToRandom / speed) * 1000).toInt().coerceAtLeast(1000)
+
+                duration = travelDuration
+                targetOffsetX = randomX
+                targetOffsetY = randomY
+
+                // Wait for travel and a pause
+                delay(travelDuration.toLong() + Random.nextLong(500, 1500))
+            }
+
+            // 3. Move back to the center
+            val (randomX, randomY) = randomPointInCircle(effectiveRadius)
+            val distanceToCenter = sqrt(randomX.value.pow(2) + randomY.value.pow(2)).toFloat()
+            val travelDuration = ((distanceToCenter / speed) * 1000).toInt().coerceAtLeast(1000)
+
+            duration = travelDuration
+            targetOffsetX = Random.nextInt(-5, 5).dp
+            targetOffsetY = Random.nextInt(-5, 5).dp
+
+            delay(travelDuration.toLong())
+
+            // 4. Fade out at the center
+            alpha.animateTo(0f, animationSpec = tween(fadeDuration))
+
+            // 5. Disappear for 7 seconds
+            delay(7000)
+        }
+    }
+
+    AsyncImage(
+        model = ImageRequest.Builder(LocalContext.current)
+            .data("file:///android_asset/pixel_ant.png")
+            .build(),
+        contentDescription = "Pixel Ant",
+        modifier = Modifier
+            .graphicsLayer { this.alpha = alpha.value }
+            .size(size)
+            .align(Alignment.Center)
+            .offset(x = animatedOffsetX, y = animatedOffsetY)
     )
 }

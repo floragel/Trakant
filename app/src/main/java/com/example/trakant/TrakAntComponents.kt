@@ -169,29 +169,6 @@ fun HabitWithProgress(title: String, progress: Float, color: Color) {
 }
 
 @Composable
-fun AntPlanet(modifier: Modifier = Modifier) {
-    Box(modifier.clip(CircleShape).background(TrakPlanetGrass)) {
-        Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(40.dp).background(TrakPlanetSoil))
-
-        // Fourmis (design pixel art abstrait)
-        val antColor = Color(0xFF1C1C1C)
-        val size = 8.dp
-
-        @Composable fun Ant(x: Dp, y: Dp, align: Alignment) {
-            Box(Modifier.align(align).offset(x, y).size(size).clip(CircleShape).background(antColor))
-        }
-
-        Ant(12.dp, 12.dp, Alignment.TopStart)
-        Ant(0.dp, 10.dp, Alignment.TopCenter)
-        Ant((-12).dp, 16.dp, Alignment.TopEnd)
-        Ant(0.dp, 0.dp, Alignment.Center)
-        Ant(8.dp, 20.dp, Alignment.CenterStart)
-        Ant((-6).dp, (-4).dp, Alignment.CenterEnd)
-        Ant(0.dp, (-12).dp, Alignment.BottomCenter)
-    }
-}
-
-@Composable
 fun SoilStrip() {
     Box(
         modifier = Modifier.fillMaxWidth().height(40.dp)
