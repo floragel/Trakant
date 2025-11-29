@@ -319,6 +319,14 @@ fun AntPlanet(modifier: Modifier = Modifier) {
                 .background(TrakPlanetGrass),
             contentAlignment = Alignment.Center
         ) {
+            AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data("file:///android_asset/house_lvl_1.png")
+                .build(),
+            contentDescription = "Pixel House",
+            modifier = Modifier
+                .align(Alignment.Center)
+        )
             // petites "fourmis" pixel art
             val size = 16.dp
             for (i in 1..7) {
@@ -337,8 +345,8 @@ private fun BoxScope.PixelAnt(
 ) {
     val effectiveRadius = planetRadius - (size / 2)
 
-    var targetOffsetX by remember { mutableStateOf(0.dp) }
-    var targetOffsetY by remember { mutableStateOf(0.dp) }
+    var targetOffsetX by remember { mutableStateOf(Random.nextInt(-10, 10).dp) }
+    var targetOffsetY by remember { mutableStateOf(Random.nextInt(-10, 10).dp) }
     var duration by remember { mutableStateOf(1000) }
     var fadeDuration by remember { mutableStateOf(1000) }
     val alpha = remember { Animatable(0f) }
@@ -357,7 +365,7 @@ private fun BoxScope.PixelAnt(
     LaunchedEffect(id) {
         // Stagger ant movement starts
         delay(id * 1500L + Random.nextLong(500))
-        
+
         while (true) {
 
             // --- Ant is at center, invisible ---
@@ -388,8 +396,8 @@ private fun BoxScope.PixelAnt(
             val travelDuration = ((distanceToCenter / speed) * 1000).toInt().coerceAtLeast(1000)
 
             duration = travelDuration
-            targetOffsetX = 0.dp
-            targetOffsetY = 0.dp
+            targetOffsetX = Random.nextInt(-5, 5).dp
+            targetOffsetY = Random.nextInt(-5, 5).dp
 
             delay(travelDuration.toLong())
 
