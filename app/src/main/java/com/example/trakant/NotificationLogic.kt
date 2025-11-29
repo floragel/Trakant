@@ -41,8 +41,9 @@ class NotificationReceiver : BroadcastReceiver() {
             context, 0, intent, PendingIntent.FLAG_IMMUTABLE
         )
 
+        // Assurez-vous que l'icône est valide. Utiliser un drawable système simple pour garantir que ça marche.
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-            .setSmallIcon(android.R.drawable.ic_dialog_info) // Icône par défaut temporaire
+            .setSmallIcon(android.R.drawable.ic_dialog_info) 
             .setContentTitle("TrakAnt Colony Needs You!")
             .setContentText("Your ant colony needs to grow. Log some of your accomplishments.")
             .setPriority(NotificationCompat.PRIORITY_DEFAULT)
@@ -50,11 +51,17 @@ class NotificationReceiver : BroadcastReceiver() {
             .setAutoCancel(true)
 
         try {
-            with(NotificationManagerCompat.from(context)) {
-                notify(NOTIFICATION_ID, builder.build())
+            val notificationManager = NotificationManagerCompat.from(context)
+            // Vérification permission Android 13+
+            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.TIRAMISU || 
+                androidx.core.content.ContextCompat.checkSelfPermission(
+                    context, android.Manifest.permission.POST_NOTIFICATIONS
+                ) == android.content.pm.PackageManager.PERMISSION_GRANTED
+            ) {
+                notificationManager.notify(NOTIFICATION_ID, builder.build())
             }
-        } catch (e: SecurityException) {
-            // Gérer le cas où la permission n'est pas accordée
+        } catch (e: Exception) {
+            // Gérer les exceptions potentielles
         }
     }
 }
@@ -74,8 +81,6 @@ fun createNotificationChannel(context: Context) {
 }
 
 fun scheduleDailyNotifications(context: Context) {
-    // Annuler les anciennes alarmes d'abord si nécessaire (ici on simplifie en écrasant)
-    
     scheduleAlarm(context, 8, 0, 100)  // Matin 8h00
     scheduleAlarm(context, 12, 0, 101) // Midi 12h00
     scheduleAlarm(context, 20, 0, 102) // Soir 20h00
@@ -85,7 +90,6 @@ fun cancelAllNotifications(context: Context) {
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val intent = Intent(context, NotificationReceiver::class.java)
     
-    // Annuler pour chaque ID
     for (id in listOf(100, 101, 102)) {
         val pendingIntent = PendingIntent.getBroadcast(
             context, id, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_NO_CREATE
@@ -97,8 +101,15 @@ fun cancelAllNotifications(context: Context) {
 }
 
 private fun scheduleAlarm(context: Context, hour: Int, minute: Int, requestCode: Int) {
+    // Vérifier permission Exact Alarm pour Android 12+ (API 31+)
+    // Ici on utilise setRepeating qui ne nécessite pas SCHEDULE_EXACT_ALARM, 
+    // mais RTC_WAKEUP peut être inexact sur les versions récentes (ce qui est OK pour des notifs générales).
+    // Si on voulait EXACT, il faudrait check canScheduleExactAlarms().
+    
     val alarmManager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
     val intent = Intent(context, NotificationReceiver::class.java)
+    
+    // Utiliser FLAG_UPDATE_CURRENT pour s'assurer que l'intent est bien mis à jour
     val pendingIntent = PendingIntent.getBroadcast(
         context, requestCode, intent, PendingIntent.FLAG_IMMUTABLE or PendingIntent.FLAG_UPDATE_CURRENT
     )
@@ -110,16 +121,20 @@ private fun scheduleAlarm(context: Context, hour: Int, minute: Int, requestCode:
         set(Calendar.SECOND, 0)
     }
 
-    // Si l'heure est déjà passée aujourd'hui, on programme pour demain
     if (calendar.timeInMillis <= System.currentTimeMillis()) {
         calendar.add(Calendar.DAY_OF_YEAR, 1)
     }
 
-    // Répétition quotidienne
-    alarmManager.setRepeating(
+    // Utilisation de setInexactRepeating pour économiser la batterie, suffisant pour des rappels "Matin/Midi/Soir"
+    alarmManager.setInexactRepeating(
         AlarmManager.RTC_WAKEUP,
         calendar.timeInMillis,
         AlarmManager.INTERVAL_DAY,
         pendingIntent
     )
+}
+
+fun sendTestNotification(context: Context) {
+    val intent = Intent(context, NotificationReceiver::class.java)
+    context.sendBroadcast(intent)
 }

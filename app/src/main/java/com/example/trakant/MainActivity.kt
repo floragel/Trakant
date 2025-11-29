@@ -1,5 +1,6 @@
 package com.example.trakant
 
+import android.content.Intent
 import android.widget.Toast
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
@@ -8,14 +9,20 @@ import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
+import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Check
 import androidx.compose.material.icons.filled.Home
+import androidx.compose.material.icons.filled.Notifications
+import androidx.compose.material.icons.filled.Person
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.rounded.BugReport
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
@@ -23,6 +30,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -142,7 +150,7 @@ fun TrakAntHomeApp() {
     } else {
         // Ecran de chargement simple
         Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-            CircularProgressIndicator()
+            CircularProgressIndicator(color = TrakLevelBar)
         }
     }
 }
@@ -204,7 +212,7 @@ fun TrakAntAppContent(
                         onSettingsChanged()
                         
                         // 5. Feedback et navigation
-                        Toast.makeText(context, "Data Saved", Toast.LENGTH_SHORT).show()
+                        Toast.makeText(context, "Changes Saved", Toast.LENGTH_SHORT).show()
                         onTabSelected(TrakTab.HOME)
                     }
                 )
@@ -220,17 +228,245 @@ fun TrakBottomBar(
 ) {
     NavigationBar(
         containerColor = TrakCreamCard,
-        tonalElevation = 4.dp
+        tonalElevation = 8.dp
     ) {
         TrakTab.entries.forEach { tab ->
+            val isSelected = tab == current
             NavigationBarItem(
-                selected = tab == current,
+                selected = isSelected,
                 onClick = { onTabSelected(tab) },
-                icon = { Icon(tab.icon, contentDescription = tab.label) },
-                label = { Text(tab.label) }
+                icon = { 
+                    Icon(
+                        imageVector = tab.icon, 
+                        contentDescription = tab.label,
+                        tint = if (isSelected) TrakLevelBar else TrakTextDark.copy(alpha = 0.5f)
+                    ) 
+                },
+                label = { 
+                    Text(
+                        tab.label, 
+                        color = if (isSelected) TrakLevelBar else TrakTextDark.copy(alpha = 0.5f),
+                        fontWeight = if (isSelected) FontWeight.Bold else FontWeight.Normal
+                    ) 
+                },
+                colors = NavigationBarItemDefaults.colors(
+                    indicatorColor = TrakBackground
+                )
             )
         }
     }
+}
+
+// ---------- SETTINGS SCREEN : DESIGN AMÉLIORÉ ----------
+
+@Composable
+fun SettingsScreen(
+    userData: UserData,
+    onSave: (newName: String, newAge: Int, notificationsEnabled: Boolean) -> Unit
+) {
+    var nameState by remember(userData.name) { mutableStateOf(userData.name) }
+    var ageState by remember(userData.age) { mutableStateOf(userData.age.toString()) }
+    var notificationsState by remember(userData.settings.notificationsEnabled) { mutableStateOf(userData.settings.notificationsEnabled) }
+    val context = LocalContext.current
+
+    Column(
+        modifier = Modifier
+            .fillMaxSize()
+            .verticalScroll(rememberScrollState())
+            .padding(horizontal = 20.dp, vertical = 24.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        
+        // --- Header & Avatar ---
+        Text(
+            text = "Colony Settings",
+            style = MaterialTheme.typography.headlineMedium,
+            fontWeight = FontWeight.ExtraBold,
+            color = TrakTextDark
+        )
+        
+        Spacer(Modifier.height(24.dp))
+
+        // Avatar Circle
+        Box(
+            modifier = Modifier
+                .size(100.dp)
+                .clip(CircleShape)
+                .background(TrakCreamCard),
+            contentAlignment = Alignment.Center
+        ) {
+            Icon(
+                imageVector = Icons.Rounded.BugReport, // Ou un asset custom si dispo
+                contentDescription = "Avatar",
+                modifier = Modifier.size(50.dp),
+                tint = TrakLevelBar
+            )
+        }
+        
+        Spacer(Modifier.height(32.dp))
+
+        // --- Section 1: Identity ---
+        SettingsSectionCard(title = "Identity") {
+            SettingsInputField(
+                value = nameState,
+                onValueChange = { nameState = it },
+                label = "Colony Name",
+                icon = Icons.Default.Person
+            )
+            
+            Spacer(Modifier.height(16.dp))
+            
+            SettingsInputField(
+                value = ageState,
+                onValueChange = { newValue ->
+                    if (newValue.all { it.isDigit() }) {
+                        ageState = newValue
+                    }
+                },
+                label = "Ruler's Age",
+                icon = Icons.Default.Cake,
+                keyboardType = KeyboardType.Number
+            )
+        }
+
+        Spacer(Modifier.height(20.dp))
+
+        // --- Section 2: Preferences ---
+        SettingsSectionCard(title = "Notifications") {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Row(verticalAlignment = Alignment.CenterVertically) {
+                    Icon(
+                        imageVector = Icons.Default.Notifications,
+                        contentDescription = null,
+                        tint = TrakLevelBar,
+                        modifier = Modifier.size(24.dp)
+                    )
+                    Spacer(Modifier.width(12.dp))
+                    Column {
+                        Text(
+                            text = "Daily Reports",
+                            style = MaterialTheme.typography.bodyLarge,
+                            fontWeight = FontWeight.SemiBold,
+                            color = TrakTextDark
+                        )
+                        Text(
+                            text = "Morning, Noon & Evening",
+                            style = MaterialTheme.typography.bodySmall,
+                            color = TrakTextDark.copy(alpha = 0.6f)
+                        )
+                    }
+                }
+                Switch(
+                    checked = notificationsState,
+                    onCheckedChange = { notificationsState = it },
+                    colors = SwitchDefaults.colors(
+                        checkedThumbColor = Color.White,
+                        checkedTrackColor = TrakLevelBar,
+                        uncheckedThumbColor = TrakTextDark.copy(alpha = 0.6f),
+                        uncheckedTrackColor = TrakBackground
+                    )
+                )
+            }
+            
+            Spacer(Modifier.height(16.dp))
+            
+            // Test Notification Button (Subtle)
+            TextButton(
+                onClick = {
+                    val intent = Intent(context, NotificationReceiver::class.java)
+                    context.sendBroadcast(intent)
+                    Toast.makeText(context, "Test notification sent!", Toast.LENGTH_SHORT).show()
+                },
+                modifier = Modifier.align(Alignment.Start)
+            ) {
+                Text("Test Notification now", color = TrakLevelBar)
+            }
+        }
+
+        Spacer(Modifier.height(40.dp))
+
+        // --- Save Button ---
+        Button(
+            onClick = {
+                val ageInt = ageState.toIntOrNull() ?: 18
+                onSave(nameState, ageInt, notificationsState)
+            },
+            colors = ButtonDefaults.buttonColors(containerColor = TrakLevelBar),
+            shape = RoundedCornerShape(12.dp),
+            modifier = Modifier
+                .fillMaxWidth()
+                .height(56.dp),
+            elevation = ButtonDefaults.buttonElevation(defaultElevation = 4.dp)
+        ) {
+            Text(
+                text = "Save Changes",
+                fontSize = 18.sp,
+                fontWeight = FontWeight.Bold,
+                color = Color.White
+            )
+        }
+    }
+}
+
+// --- Helpers UI pour Settings ---
+
+@Composable
+fun SettingsSectionCard(
+    title: String,
+    content: @Composable ColumnScope.() -> Unit
+) {
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Text(
+            text = title.uppercase(),
+            style = MaterialTheme.typography.labelLarge,
+            color = TrakTextDark.copy(alpha = 0.5f),
+            fontWeight = FontWeight.Bold,
+            modifier = Modifier.padding(start = 8.dp, bottom = 8.dp)
+        )
+        Card(
+            colors = CardDefaults.cardColors(containerColor = TrakCreamCard),
+            shape = RoundedCornerShape(24.dp),
+            modifier = Modifier.fillMaxWidth(),
+            elevation = CardDefaults.cardElevation(defaultElevation = 0.dp) // Flat aesthetic
+        ) {
+            Column(
+                modifier = Modifier.padding(20.dp),
+                content = content
+            )
+        }
+    }
+}
+
+@Composable
+fun SettingsInputField(
+    value: String,
+    onValueChange: (String) -> Unit,
+    label: String,
+    icon: ImageVector,
+    keyboardType: KeyboardType = KeyboardType.Text
+) {
+    OutlinedTextField(
+        value = value,
+        onValueChange = onValueChange,
+        label = { Text(label) },
+        leadingIcon = { Icon(icon, contentDescription = null, tint = TrakLevelBar) },
+        modifier = Modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(12.dp),
+        colors = OutlinedTextFieldDefaults.colors(
+            focusedBorderColor = TrakLevelBar,
+            unfocusedBorderColor = TrakTextDark.copy(alpha = 0.2f),
+            focusedLabelColor = TrakLevelBar,
+            cursorColor = TrakLevelBar,
+            focusedTextColor = TrakTextDark,
+            unfocusedTextColor = TrakTextDark
+        ),
+        singleLine = true,
+        keyboardOptions = KeyboardOptions(keyboardType = keyboardType)
+    )
 }
 
 // ---------- HOME SCREEN : DESIGN PRINCIPAL ----------
@@ -616,84 +852,6 @@ fun GraphsScreen() {
     // Page simple pour les graphiques
     Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
         Text("Page des Graphiques", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TrakTextDark)
-    }
-}
-
-@Composable
-fun SettingsScreen(
-    userData: UserData,
-    onSave: (newName: String, newAge: Int, notificationsEnabled: Boolean) -> Unit
-) {
-    var nameState by remember(userData.name) { mutableStateOf(userData.name) }
-    var ageState by remember(userData.age) { mutableStateOf(userData.age.toString()) }
-    var notificationsState by remember(userData.settings.notificationsEnabled) { mutableStateOf(userData.settings.notificationsEnabled) }
-
-    Column(
-        modifier = Modifier
-            .fillMaxSize()
-            .padding(16.dp),
-        verticalArrangement = Arrangement.Top,
-        horizontalAlignment = Alignment.CenterHorizontally
-    ) {
-        Text(
-            "User Settings", 
-            fontSize = 24.sp, 
-            fontWeight = FontWeight.Bold, 
-            color = TrakTextDark
-        )
-        
-        Spacer(Modifier.height(24.dp))
-        
-        // Champ Nom
-        OutlinedTextField(
-            value = nameState,
-            onValueChange = { nameState = it },
-            label = { Text("Username") },
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Spacer(Modifier.height(16.dp))
-        
-        // Champ Age
-        OutlinedTextField(
-            value = ageState,
-            onValueChange = { newValue ->
-                // On n'autorise que les chiffres
-                if (newValue.all { it.isDigit() }) {
-                    ageState = newValue
-                }
-            },
-            label = { Text("Age") },
-            keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-            modifier = Modifier.fillMaxWidth()
-        )
-        
-        Spacer(Modifier.height(24.dp))
-        
-        // Switch Notifications
-        Row(
-            modifier = Modifier.fillMaxWidth(),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween
-        ) {
-            Text("Enable Daily Notifications", fontSize = 16.sp, color = TrakTextDark)
-            Switch(
-                checked = notificationsState,
-                onCheckedChange = { notificationsState = it }
-            )
-        }
-        
-        Spacer(Modifier.height(32.dp))
-        
-        Button(
-            onClick = {
-                val ageInt = ageState.toIntOrNull() ?: 18
-                onSave(nameState, ageInt, notificationsState)
-            },
-            colors = ButtonDefaults.buttonColors(containerColor = TrakLevelBar)
-        ) {
-            Text("Save Changes", color = Color.White)
-        }
     }
 }
 
