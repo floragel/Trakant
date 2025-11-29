@@ -209,7 +209,6 @@ Les tests ont été réalisés sur les **téléphones mobiles réels** des membr
 
 ## 📁 Structure du projet
 
-\`\`\`
 app/
  ├── src/
  │    └── main/
@@ -238,7 +237,6 @@ app/
  │               └── values/
  │
  └── build.gradle
-\`\`\`
 
 ---
 
