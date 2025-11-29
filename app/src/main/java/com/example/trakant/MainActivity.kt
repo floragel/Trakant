@@ -2,26 +2,33 @@ package com.example.trakant
 
 import android.app.Application
 import android.app.DatePickerDialog
-import androidx.compose.ui.graphics.SolidColor
 import android.os.Bundle
 import android.widget.Toast
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.SolidColor
+import androidx.compose.ui.graphics.StrokeCap
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontStyle
@@ -76,9 +83,11 @@ class MainActivity : ComponentActivity() {
     }
 }
 
+// NOUVEAU: Ajout de l'onglet CHARTS
 enum class TrakTab(val label: String, val icon: ImageVector) {
-    HOME("Home", Icons.Default.Home),
+    HOME("Accueil", Icons.Default.Home),
     QUESTS("Quêtes", Icons.Default.Check),
+    CHARTS("Statistiques", Icons.AutoMirrored.Filled.TrendingUp), // Nouveau
     SETTINGS("Paramètres", Icons.Default.Settings)
 }
 
@@ -115,6 +124,13 @@ fun TrakAntApp() {
         }
     }
 
+    // NOUVEAUX Callbacks pour le Debug
+    val updateXpRaw = { amount: Int -> userData = UserManager.addRawXp(context, userData, amount) }
+    val resetUser = {
+        userData = UserManager.resetUser(context, userData)
+        Toast.makeText(context, "Utilisateur réinitialisé !", Toast.LENGTH_SHORT).show()
+    }
+
     var currentTab by rememberSaveable { mutableStateOf(TrakTab.HOME) }
 
     Scaffold(
@@ -148,9 +164,12 @@ fun TrakAntApp() {
                         updateXp(amount, typeName, today, add)
                     }
                 )
+                TrakTab.CHARTS -> ChartsScreen(userData = userData)
                 TrakTab.SETTINGS -> SettingsScreen(
                     userData = userData,
-                    onSave = saveProfile
+                    onSave = saveProfile,
+                    onDebugXp = updateXpRaw, // PASS NOUVEAU CALLBACK
+                    onReset = resetUser // PASS NOUVEAU CALLBACK
                 )
             }
         }
@@ -158,12 +177,315 @@ fun TrakAntApp() {
 }
 
 // ------------------------------------------------------------------
-// --- ECRAN SETTINGS (Amélioré avec Logbook et Bouton de Test) -----
+// --- COMPOSANTS BADGES ET HOME (SIMPLIFIÉS/PRÉCÉDENTS) ---
 // ------------------------------------------------------------------
+
+data class DisplayBadge(val label: String, val color: Color)
+
+@Composable
+fun BadgeChip(label: String, color: Color, modifier: Modifier = Modifier) {
+    Card(colors = CardDefaults.cardColors(containerColor = color), shape = RoundedCornerShape(14.dp), modifier = modifier.height(48.dp)) {
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.CenterStart) {
+            Text(label, color = Color.White, modifier = Modifier.padding(horizontal = 16.dp), fontSize = 14.sp, fontWeight = FontWeight.SemiBold)
+        }
+    }
+}
+
+@Composable
+fun DynamicBadgesGrid(userData: UserData) {
+    // Logique simplifiée : badges basés sur le niveau et l'activité.
+    val badges = mutableListOf<DisplayBadge>()
+    if (userData.level >= 5) {
+        badges.add(DisplayBadge("Fourmi Ouvrière (Lv 5+)", TrakYellow))
+    }
+    if (userData.level >= 10) {
+        badges.add(DisplayBadge("Fourmi Soldat (Lv 10+)", TrakRed))
+    }
+    // Vérification de 3 jours d'activité
+    val uniqueDays = userData.history.map { it.date }.distinct().size
+    if (uniqueDays >= 3) {
+        badges.add(DisplayBadge("Première Colonie (3 Jours)", TrakBlue))
+    }
+
+    if (badges.isEmpty()) {
+        Text("Aucun badge débloqué pour l'instant.", fontStyle = FontStyle.Italic, color = TrakTextDark.copy(0.7f), modifier = Modifier.padding(16.dp))
+        return
+    }
+
+    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+        // Layout en 2 colonnes
+        badges.chunked(2).forEach { rowBadges ->
+            Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                rowBadges.forEach { badge ->
+                    BadgeChip(label = badge.label, color = badge.color, modifier = Modifier.weight(1f))
+                }
+                // Remplir l'espace s'il n'y a qu'un badge sur la ligne
+                if (rowBadges.size == 1) {
+                    Spacer(modifier = Modifier.weight(1f))
+                }
+            }
+        }
+    }
+}
+
+
+// ------------------------------------------------------------------
+// --- ÉCRAN HOME (SIMPLIFIÉ) -----------
+// ------------------------------------------------------------------
+@Composable
+fun HomeScreen(userData: UserData, onRetroactiveAdd: (QuestType, String) -> Unit) {
+    var showRetroDialog by remember { mutableStateOf(false) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
+    ) {
+        item {
+            LevelHeader(level = userData.level, xp = userData.xp)
+            Spacer(Modifier.height(16.dp))
+            Text("Salut, ${userData.name}", color = TrakTextDark, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
+            Spacer(Modifier.height(16.dp))
+            MainStatsCard(userData)
+
+            Spacer(Modifier.height(24.dp))
+
+            // AFFICHAGE DES BADGES DYNAMIQUES
+            Text("Mes Badges", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TrakTextDark)
+            Spacer(Modifier.height(12.dp))
+            DynamicBadgesGrid(userData)
+
+            Spacer(Modifier.height(24.dp))
+            Button(
+                onClick = { showRetroDialog = true },
+                colors = ButtonDefaults.buttonColors(containerColor = TrakTextDark.copy(alpha=0.1f), contentColor = TrakTextDark),
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp)
+            ) {
+                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
+                Spacer(Modifier.width(8.dp))
+                Text("Voyage dans le temps (Ajout rétroactif)")
+            }
+            Spacer(Modifier.height(16.dp))
+        }
+
+        item {
+            SoilStrip()
+            Spacer(Modifier.height(40.dp)) // Padding pour le bas
+        }
+    }
+
+    if (showRetroDialog) {
+        RetroactiveDialog(onDismiss = { showRetroDialog = false }, onConfirm = onRetroactiveAdd)
+    }
+}
+
+
+// ------------------------------------------------------------------
+// --- ÉCRAN GRAPHIQUES (Ajout de la courbe et correction du DailyChartCard) ---
+// ------------------------------------------------------------------
+
+data class XpPoint(val date: String, val cumulativeXp: Int)
+
+@Composable
+fun XpHistoryLineChart(data: List<XpPoint>) {
+    val lineColor = TrakLevelBar
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = TrakCreamCard),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth().height(250.dp)
+    ) {
+        Box(modifier = Modifier.fillMaxSize().padding(16.dp)) {
+
+            if (data.size <= 1) {
+                Text("Plus de données sont nécessaires pour afficher la courbe.", fontStyle = FontStyle.Italic, color = TrakTextDark.copy(0.7f), modifier = Modifier.align(Alignment.Center))
+            } else {
+                val maxCumulativeXp = data.maxOf { it.cumulativeXp }.toFloat()
+
+                Canvas(modifier = Modifier.fillMaxSize().padding(bottom = 20.dp, end = 20.dp)) {
+                    val points = data.mapIndexed { index, point ->
+                        val x = (index.toFloat() / (data.size - 1)) * size.width
+                        val y = size.height - (point.cumulativeXp.toFloat() / maxCumulativeXp) * size.height
+                        Offset(x, y)
+                    }
+
+                    // Dessin de la ligne
+                    for (i in 0 until points.size - 1) {
+                        drawLine(
+                            color = lineColor,
+                            start = points[i],
+                            end = points[i+1],
+                            strokeWidth = 4.dp.toPx(),
+                            cap = StrokeCap.Round
+                        )
+                    }
+
+                    // Dessin des points
+                    points.forEach { point ->
+                        drawCircle(
+                            color = lineColor,
+                            radius = 6.dp.toPx(),
+                            center = point
+                        )
+                        drawCircle(
+                            color = Color.White,
+                            radius = 3.dp.toPx(),
+                            center = point
+                        )
+                    }
+                }
+            }
+        }
+    }
+}
+
+// --- NOUVEAU COMPOSANT : DailyChartCard ---
+@Composable
+fun DailyChartCard(date: String, typeCounts: Map<String, Int>, totalXp: Int, questTypeColors: Map<String, Color>) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = TrakCreamCard),
+        shape = RoundedCornerShape(16.dp),
+        modifier = Modifier.fillMaxWidth()
+    ) {
+        Column(modifier = Modifier.padding(16.dp)) {
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                horizontalArrangement = Arrangement.SpaceBetween,
+                verticalAlignment = Alignment.CenterVertically
+            ) {
+                // Formater la date pour la rendre plus lisible si elle est en format yyyy-MM-dd
+                val displayDate = try {
+                    val inputFormat = SimpleDateFormat("yyyy-MM-dd", Locale.getDefault())
+                    val outputFormat = SimpleDateFormat("EEEE d MMMM", Locale("fr", "FR")) // Ex: samedi 29 novembre
+                    outputFormat.format(inputFormat.parse(date)!!)
+                } catch (e: Exception) {
+                    date
+                }
+                Text(displayDate.replaceFirstChar { it.uppercase() }, fontWeight = FontWeight.Bold, fontSize = 18.sp, color = TrakTextDark)
+                Text("+${totalXp} XP", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = TrakLevelBar)
+            }
+
+            Spacer(Modifier.height(12.dp))
+
+            if (typeCounts.isNotEmpty()) {
+                Text("Détail des activités :", fontSize = 14.sp, color = TrakTextDark.copy(0.8f))
+                Spacer(Modifier.height(8.dp))
+
+                Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                    typeCounts.forEach { (typeName, count) ->
+                        val color = questTypeColors[typeName] ?: Color.Gray
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(color))
+                            Spacer(Modifier.width(8.dp))
+                            Text("$typeName : $count complété(s)", fontSize = 14.sp, color = TrakTextDark)
+                        }
+                    }
+                }
+            } else {
+                Text("Aucune quête terminée ce jour.", fontStyle = FontStyle.Italic, fontSize = 14.sp, color = TrakTextDark.copy(0.7f))
+            }
+        }
+    }
+}
+
+
+@Composable
+fun ChartsScreen(userData: UserData) {
+    // 1. Agrégation des données par jour
+    val completedQuestsByDay = remember(userData.history) {
+        userData.history
+            .groupBy { it.date }
+            .toSortedMap() // Tri par date pour un affichage chronologique
+    }
+
+    // 2. Calcul de l'XP cumulée par jour (pour la courbe)
+    val xpDataForChart = remember(userData.history) {
+        val dailyXp = userData.history
+            .groupBy { it.date }
+            .mapValues { (_, entries) -> entries.sumOf { it.xpGained } }
+            .toSortedMap()
+
+        var cumulativeXp = 0
+        dailyXp.map { (date, xpGained) ->
+            cumulativeXp += xpGained
+            XpPoint(date, cumulativeXp)
+        }.toList()
+    }
+
+    // Assurez-vous d'avoir la définition de TrakAntColors et QuestType pour cette ligne
+    val questTypeColors = QuestType.entries.associate { it.name to Color(it.colorHex) }
+
+    LazyColumn(
+        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp),
+        horizontalAlignment = Alignment.CenterHorizontally
+    ) {
+        item {
+            Text("Statistiques des Quêtes", fontSize = 28.sp, fontWeight = FontWeight.ExtraBold, color = TrakTextDark, modifier = Modifier.padding(top = 16.dp))
+            Spacer(Modifier.height(16.dp))
+        }
+
+        if (xpDataForChart.isEmpty()) {
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = TrakCreamCard), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
+                    Text("Complétez des quêtes pour voir vos statistiques !",
+                        modifier = Modifier.padding(16.dp),
+                        fontStyle = FontStyle.Italic,
+                        color = TrakTextDark.copy(0.7f)
+                    )
+                }
+            }
+        } else {
+            // --- COURBE D'XP CUMULÉE ---
+            item {
+                Text("Progression de l'XP", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TrakTextDark)
+                Spacer(Modifier.height(8.dp))
+                XpHistoryLineChart(data = xpDataForChart)
+                Spacer(Modifier.height(24.dp))
+
+                Divider(color = TrakLevelBar.copy(alpha = 0.3f), thickness = 1.dp, modifier = Modifier.padding(vertical = 8.dp))
+
+                Text("Détail par Jour et Type", fontSize = 20.sp, fontWeight = FontWeight.Bold, color = TrakTextDark)
+                Spacer(Modifier.height(12.dp))
+            }
+
+            // Légende des couleurs
+            item {
+                Card(colors = CardDefaults.cardColors(containerColor = TrakCreamCard), shape = RoundedCornerShape(12.dp), modifier = Modifier.fillMaxWidth().padding(bottom = 16.dp)) {
+                    Column(Modifier.padding(12.dp)) {
+                        Text("Légende des Catégories", fontWeight = FontWeight.Bold, color = TrakTextDark)
+                        Spacer(Modifier.height(8.dp))
+                        QuestType.entries.forEach { type ->
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Box(modifier = Modifier.size(10.dp).clip(CircleShape).background(Color(type.colorHex)))
+                                Spacer(Modifier.width(8.dp))
+                                Text(type.title, fontSize = 14.sp, color = TrakTextDark)
+                            }
+                        }
+                    }
+                }
+            }
+
+            // Affichage des cartes DailyChartCard
+            items(completedQuestsByDay.toList().asReversed()) { (date, entries) ->
+                val typeCounts = entries.groupingBy { it.typeName }.eachCount()
+                DailyChartCard(date = date, typeCounts = typeCounts, totalXp = entries.sumOf { it.xpGained }, questTypeColors = questTypeColors)
+                Spacer(Modifier.height(12.dp))
+            }
+        }
+
+        item { Spacer(Modifier.height(40.dp)) }
+    }
+}
+
+// ------------------------------------------------------------------
+// --- ECRAN SETTINGS (Section Debug) --------------
+// ------------------------------------------------------------------
+
 @Composable
 fun SettingsScreen(
     userData: UserData,
-    onSave: (newName: String, newAge: Int, notificationsEnabled: Boolean) -> Unit
+    onSave: (newName: String, newAge: Int, notificationsEnabled: Boolean) -> Unit,
+    onDebugXp: (Int) -> Unit, // NOUVEAU
+    onReset: () -> Unit // NOUVEAU
 ) {
     val context = LocalContext.current // Récupérer le contexte ici
     var nameState by remember(userData.name) { mutableStateOf(userData.name) }
@@ -241,11 +563,11 @@ fun SettingsScreen(
                         Text("Sauvegarder les modifications", color = Color.White, fontWeight = FontWeight.SemiBold)
                     }
 
-                    // NOUVEAU: Bouton de Test de Notification
+                    // Bouton de Test de Notification
                     Spacer(Modifier.height(16.dp))
                     OutlinedButton(
                         onClick = {
-                            sendTestNotification(context) // Appel à la nouvelle fonction
+                            sendTestNotification(context) // Appel à la fonction de test
                             Toast.makeText(context, "Tentative d'envoi d'une notification de test.", Toast.LENGTH_SHORT).show()
                         },
                         modifier = Modifier.fillMaxWidth(),
@@ -295,68 +617,108 @@ fun SettingsScreen(
                 Spacer(Modifier.height(8.dp))
             }
         }
-        item { Spacer(Modifier.height(40.dp)) } // Padding pour le bas
+
+        // --- SECTION DEBUG ---
+        item {
+            Spacer(Modifier.height(16.dp))
+            Divider(color = TrakLevelBar.copy(alpha = 0.5f), thickness = 1.dp)
+            Spacer(Modifier.height(16.dp))
+            DebugSection(
+                currentLevel = userData.level,
+                onAddXp = onDebugXp,
+                onResetUser = onReset
+            )
+            Spacer(Modifier.height(40.dp))
+        }
     }
 }
-
-
-// ------------------------------------------------------------------
-// --- Autres Écrans et Dialogues (inchangés) -----------------------
-// ------------------------------------------------------------------
 
 @Composable
-fun HomeScreen(userData: UserData, onRetroactiveAdd: (QuestType, String) -> Unit) {
-    var showRetroDialog by remember { mutableStateOf(false) }
+fun DebugSection(currentLevel: Int, onAddXp: (Int) -> Unit, onResetUser: () -> Unit) {
+    var xpAmount by remember { mutableStateOf("100") }
 
-    Column(
-        modifier = Modifier.fillMaxSize().padding(horizontal = 16.dp, vertical = 12.dp),
-        verticalArrangement = Arrangement.SpaceBetween
+    Card(
+        colors = CardDefaults.cardColors(containerColor = TrakRed.copy(alpha = 0.2f)),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier.fillMaxWidth()
     ) {
-        Column(modifier = Modifier.fillMaxWidth()) {
-            LevelHeader(level = userData.level, xp = userData.xp)
+        Column(Modifier.padding(16.dp)) {
+            Text("⚙️ Section Debug 🐜", fontWeight = FontWeight.Bold, fontSize = 20.sp, color = TrakTextDark)
+            Text("Utilisation : Ajuster rapidement l'état du joueur.", fontSize = 12.sp, color = TrakTextDark.copy(0.7f))
             Spacer(Modifier.height(16.dp))
-            Text("Salut, ${userData.name}", color = TrakTextDark, fontSize = 32.sp, fontWeight = FontWeight.ExtraBold)
-            Spacer(Modifier.height(16.dp))
-            MainStatsCard(userData)
 
-            Spacer(Modifier.height(16.dp))
-            Button(
-                onClick = { showRetroDialog = true },
-                colors = ButtonDefaults.buttonColors(containerColor = TrakTextDark.copy(alpha=0.1f), contentColor = TrakTextDark),
+            // 1. Ajouter XP
+            Row(
                 modifier = Modifier.fillMaxWidth(),
-                shape = RoundedCornerShape(12.dp)
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.spacedBy(8.dp)
             ) {
-                Icon(Icons.Default.History, contentDescription = null, modifier = Modifier.size(18.dp))
-                Spacer(Modifier.width(8.dp))
-                Text("Voyage dans le temps (Ajout rétroactif)")
+                OutlinedTextField(
+                    value = xpAmount,
+                    onValueChange = { if (it.isEmpty() || it.all { char -> char.isDigit() || (it.startsWith("-") && it.length > 1) }) xpAmount = it },
+                    label = { Text("Quantité d'XP (+ ou -)") },
+                    keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
+                    modifier = Modifier.weight(1f).background(Color.White, RoundedCornerShape(8.dp))
+                )
+                Button(
+                    onClick = { onAddXp(xpAmount.toIntOrNull() ?: 0) },
+                    colors = ButtonDefaults.buttonColors(containerColor = TrakLevelBar)
+                ) {
+                    Text("Ajuster XP")
+                }
+            }
+            Spacer(Modifier.height(12.dp))
+
+            // 2. Info Level
+            Row(
+                modifier = Modifier.fillMaxWidth(),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween
+            ) {
+                Text("Level actuel : $currentLevel", fontSize = 16.sp, fontWeight = FontWeight.SemiBold, color = TrakTextDark)
+                Button(
+                    onClick = { onAddXp(500) },
+                    colors = ButtonDefaults.buttonColors(containerColor = TrakYellow)
+                ) {
+                    Text("Gain +500 XP")
+                }
+            }
+            Spacer(Modifier.height(16.dp))
+
+            // 3. Réinitialiser
+            Divider(color = TrakRed.copy(alpha = 0.5f), thickness = 1.dp)
+            Spacer(Modifier.height(16.dp))
+            OutlinedButton(
+                onClick = onResetUser,
+                modifier = Modifier.fillMaxWidth(),
+                shape = RoundedCornerShape(12.dp),
+                colors = ButtonDefaults.outlinedButtonColors(contentColor = TrakRed),
+                border = ButtonDefaults.outlinedButtonBorder.copy(brush = SolidColor(TrakRed))
+            ) {
+                Text("Réinitialiser tout (XP, Level, Logbook)", fontWeight = FontWeight.SemiBold)
             }
         }
-
-        Column(modifier = Modifier.fillMaxWidth()) {
-            BadgesGrid()
-            Spacer(Modifier.height(16.dp))
-            SoilStrip()
-        }
-    }
-
-    if (showRetroDialog) {
-        RetroactiveDialog(onDismiss = { showRetroDialog = false }, onConfirm = onRetroactiveAdd)
     }
 }
 
+
+// ------------------------------------------------------------------
+// --- ECRAN QUESTS et Dialogues (SIMPLIFIÉS/PRÉCÉDENTS) --------------
+// ------------------------------------------------------------------
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 fun RetroactiveDialog(onDismiss: () -> Unit, onConfirm: (QuestType, String) -> Unit) {
     val context = LocalContext.current
     var selectedType by remember { mutableStateOf<QuestType?>(null) }
     var selectedDate by remember { mutableStateOf("") }
+    var note by remember { mutableStateOf("") }
 
     val calendar = Calendar.getInstance()
     val datePickerDialog = DatePickerDialog(
         context,
         { _, year, month, day ->
-            // Format JJ/MM/AAAA pour l'affichage, mais AAAA-MM-JJ pour le stockage dans le Logbook
-            selectedDate = "$year-${month + 1}-${String.format("%02d", day)}"
+            // Format AAAA-MM-JJ pour le stockage dans le Logbook
+            selectedDate = "$year-${String.format("%02d", month + 1)}-${String.format("%02d", day)}"
         },
         calendar.get(Calendar.YEAR), calendar.get(Calendar.MONTH), calendar.get(Calendar.DAY_OF_MONTH)
     )
@@ -378,11 +740,14 @@ fun RetroactiveDialog(onDismiss: () -> Unit, onConfirm: (QuestType, String) -> U
                                 verticalAlignment = Alignment.CenterVertically
                             ) {
                                 RadioButton(selected = (selectedType == type), onClick = { selectedType = type })
-                                Text(type.title, fontSize = 14.sp)
+                                Text(type.title)
                             }
                         }
                     }
                 }
+                Spacer(Modifier.height(8.dp))
+                // La variable 'note' est maintenant déclarée.
+                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Note") })
             }
         },
         confirmButton = {

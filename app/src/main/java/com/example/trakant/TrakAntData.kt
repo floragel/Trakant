@@ -5,6 +5,9 @@ import androidx.room.*
 import com.google.gson.Gson
 import kotlinx.coroutines.flow.Flow
 import java.util.UUID
+import java.text.SimpleDateFormat
+import java.util.Date
+import java.util.Locale
 
 // ==========================================
 // 1. DÉFINITIONS ET ENUMS
@@ -140,6 +143,26 @@ object UserManager {
         if (user.history.isNotEmpty()) {
             // user.history.removeAt(user.history.lastIndex)
         }
+        saveUser(context, user)
+        return user
+    }
+
+    // --- NOUVELLES FONCTIONS DE DEBUG ---
+    fun addRawXp(context: Context, user: UserData, amount: Int): UserData {
+        user.xp += amount
+        // Recalculer le niveau
+        user.xp = user.xp.coerceAtLeast(0) // Ne pas aller en négatif
+        user.level = 1 + (user.xp / 100)
+        user.colonySize = user.level
+        saveUser(context, user)
+        return user
+    }
+
+    fun resetUser(context: Context, user: UserData): UserData {
+        user.xp = 0
+        user.level = 1
+        user.colonySize = 1
+        user.history.clear()
         saveUser(context, user)
         return user
     }

@@ -42,7 +42,7 @@ class NotificationReceiver : BroadcastReceiver() {
         val builder = NotificationCompat.Builder(context, CHANNEL_ID)
             .setSmallIcon(android.R.drawable.ic_dialog_info) // Remplacer par R.drawable.ic_notification si vous l'avez
             .setContentTitle("N'oublie pas ta colonie !")
-            .setContentText("Ta colonie de fourmie a besoin de grandire. Rajoute des accomplissements pour l'aider")
+            .setContentText("Il est temps de faire ta check-list pour gagner de l'XP.")
             .setPriority(NotificationCompat.PRIORITY_HIGH)
             .setContentIntent(pendingIntent)
             .setAutoCancel(true)
@@ -118,7 +118,7 @@ private fun scheduleAlarm(context: Context, hour: Int, minute: Int, requestCode:
 }
 
 // ===========================================
-// NOUVEAU: FONCTION DE TEST IMMÉDIAT
+// FONCTION DE TEST IMMÉDIAT
 // ===========================================
 
 fun sendTestNotification(context: Context) {
@@ -136,8 +136,8 @@ fun sendTestNotification(context: Context) {
     // Construction de la notification de test
     val builder = NotificationCompat.Builder(context, CHANNEL_ID)
         .setSmallIcon(android.R.drawable.ic_dialog_info)
-        .setContentTitle("N'oublie pas ta colonie !")
-        .setContentText("Ta colonie de fourmie a besoin de grandire. Rajoute des accomplissements pour l'aider")
+        .setContentTitle("Notification de Test TrakAnt 🐜")
+        .setContentText("Ceci est une notification de test immédiate. ✅")
         .setPriority(NotificationCompat.PRIORITY_HIGH)
         .setContentIntent(pendingIntent)
         .setAutoCancel(true)
