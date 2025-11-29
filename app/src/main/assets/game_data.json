@@ -1,0 +1,21 @@
+{
+  "missions": [
+    { "id": "fitness", "name": "Fitness", "coef": 2 },
+    { "id": "study",   "name": "Study",   "coef": 2 },
+    { "id": "sleep",   "name": "Sleep",   "coef": 1 },
+    { "id": "book",    "name": "Book",    "coef": 1 }
+  ],
+
+  "quests": [
+    { "id": "q1", "missionId": "fitness", "title": "10 min workout", "baseXp": 20 },
+    { "id": "q2", "missionId": "study",   "title": "Study 30 min",   "baseXp": 25 },
+    { "id": "q3", "missionId": "sleep",   "title": "Sleep 7h+",      "baseXp": 15 },
+    { "id": "q4", "missionId": "book",    "title": "Read 10 pages",  "baseXp": 15 }
+  ],
+
+  "badges": [
+    { "id": "b1", "name": "Streak Master", "description": "Complete any mission 7 days in a row" },
+    { "id": "b2", "name": "Bookworm",      "description": "Complete 15 book quests" },
+    { "id": "b3", "name": "Gym Rat",       "description": "Earn 500 XP from fitness" }
+  ]
+}
