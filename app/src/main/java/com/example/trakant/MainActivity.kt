@@ -632,7 +632,8 @@ fun MainStatsCard(
                 AntPlanet(
                     modifier = Modifier
                         .fillMaxWidth()
-                        .aspectRatio(1f)
+                        .aspectRatio(1f),
+                    antNumber = "${userData.colonySize}".toInt()
                 )
                 Spacer(Modifier.height(8.dp))
                 Text(
@@ -710,7 +711,7 @@ private fun randomPointInCircle(radius: Dp): Pair<Dp, Dp> {
 
 // Planète colonie en pixel-style simplifié (vert + sol + points fourmis)
 @Composable
-fun AntPlanet(modifier: Modifier = Modifier) {
+fun AntPlanet(modifier: Modifier = Modifier, antNumber: Int = 10) {
     BoxWithConstraints(modifier) {
         val planetRadius = maxWidth / 2
         Box(
@@ -730,7 +731,7 @@ fun AntPlanet(modifier: Modifier = Modifier) {
         )
             // petites "fourmis" pixel art
             val size = 16.dp
-            for (i in 1..7) {
+            for (i in 1..antNumber) {
                 PixelAnt(i, size, planetRadius)
             }
         }
