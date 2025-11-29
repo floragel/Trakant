@@ -7,6 +7,9 @@ import androidx.compose.ui.platform.LocalContext
 import android.os.Bundle
 import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
+import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.animateDpAsState
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -30,7 +33,9 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
@@ -38,6 +43,14 @@ import androidx.compose.ui.tooling.preview.Preview
 import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import coil.compose.AsyncImage
+import coil.request.ImageRequest
+import kotlinx.coroutines.delay
+import kotlin.random.Random
+import kotlin.math.sqrt
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.pow
 
 // ---------- COULEURS TRAKANT (pastel fourmilière) ----------
 
@@ -45,8 +58,6 @@ private val TrakBackground = Color(0xFFCDECC4)   // vert pastel fond
 private val TrakLevelBar   = Color(0xFF4B9C6A)   // vert plus foncé
 private val TrakCreamCard  = Color(0xFFF7F0D9)   // carte beige
 private val TrakPlanetGrass = Color(0xFF99D46D)  // herbe planète
-private val TrakPlanetSoil  = Color(0xFFB77746)  // terre planète
-private val TrakSoilStrip   = Color(0xFF8B5A3C)  // bande de sol
 private val TrakTextDark    = Color(0xFF233221)
 
 private val TrakBlue   = Color(0xFF4AA7C9)
@@ -514,9 +525,6 @@ fun TrakAntHomeScreen(
             BadgesGrid()
 
             Spacer(Modifier.height(16.dp))
-
-            // --- Bande de sol pixel style ---
-            SoilStrip()
         }
     }
 }
@@ -690,66 +698,128 @@ fun HabitProgressBar(
     }
 }
 
+private fun randomPointInCircle(radius: Dp): Pair<Dp, Dp> {
+    val r = radius.value * sqrt(Random.nextDouble())
+    val theta = Random.nextDouble() * 2 * Math.PI
+
+    val x = r * cos(theta)
+    val y = r * sin(theta)
+
+    return x.toFloat().dp to y.toFloat().dp
+}
+
 // Planète colonie en pixel-style simplifié (vert + sol + points fourmis)
 @Composable
 fun AntPlanet(modifier: Modifier = Modifier) {
-    Box(
-        modifier = modifier
-            .clip(CircleShape)
-            .background(TrakPlanetGrass)
-    ) {
-        // sol marron en bas
+    BoxWithConstraints(modifier) {
+        val planetRadius = maxWidth / 2
         Box(
             modifier = Modifier
-                .align(Alignment.BottomCenter)
-                .fillMaxWidth()
-                .height(40.dp)
-                .background(TrakPlanetSoil)
+                .fillMaxSize()
+                .clip(CircleShape)
+                .background(TrakPlanetGrass),
+            contentAlignment = Alignment.Center
+        ) {
+            AsyncImage(
+            model = ImageRequest.Builder(LocalContext.current)
+                .data("file:///android_asset/house_lvl_1.png")
+                .build(),
+            contentDescription = "Pixel House",
+            modifier = Modifier
+                .align(Alignment.Center)
         )
-
-        // petites "fourmis" abstraites
-        val antColor = Color(0xFF1C1C1C)
-        val size = 8.dp
-
-        AntDot(antColor, size, Alignment.TopStart, offsetX = 12.dp, offsetY = 12.dp)
-        AntDot(antColor, size, Alignment.TopCenter, offsetY = 10.dp)
-        AntDot(antColor, size, Alignment.TopEnd, offsetX = (-12).dp, offsetY = 16.dp)
-        AntDot(antColor, size, Alignment.Center, offsetX = 0.dp, offsetY = 0.dp)
-        AntDot(antColor, size, Alignment.CenterStart, offsetX = 8.dp, offsetY = 20.dp)
-        AntDot(antColor, size, Alignment.CenterEnd, offsetX = (-6).dp, offsetY = (-4).dp)
-        AntDot(antColor, size, Alignment.BottomCenter, offsetY = (-12).dp)
+            // petites "fourmis" pixel art
+            val size = 16.dp
+            for (i in 1..7) {
+                PixelAnt(i, size, planetRadius)
+            }
+        }
     }
 }
 
 // simple helper extension to align with offset in AntPlanet
 @Composable
-private fun BoxScope.AntDot(
-    color: Color,
+private fun BoxScope.PixelAnt(
+    id: Int,
     size: Dp,
-    baseAlignment: Alignment,
-    offsetX: Dp = 0.dp,
-    offsetY: Dp = 0.dp
+    planetRadius: Dp
 ) {
-    Box(
+    val effectiveRadius = planetRadius - (size / 2)
+
+    var targetOffsetX by remember { mutableStateOf(Random.nextInt(-10, 10).dp) }
+    var targetOffsetY by remember { mutableStateOf(Random.nextInt(-10, 10).dp) }
+    var duration by remember { mutableStateOf(1000) }
+    var fadeDuration by remember { mutableStateOf(1000) }
+    val alpha = remember { Animatable(0f) }
+
+    val animatedOffsetX by animateDpAsState(
+        targetValue = targetOffsetX,
+        animationSpec = tween(durationMillis = duration),
+        label = "ant_x_$id"
+    )
+    val animatedOffsetY by animateDpAsState(
+        targetValue = targetOffsetY,
+        animationSpec = tween(durationMillis = duration),
+        label = "ant_y_$id"
+    )
+
+    LaunchedEffect(id) {
+        // Stagger ant movement starts
+        delay(id * 1500L + Random.nextLong(500))
+
+        while (true) {
+
+            // --- Ant is at center, invisible ---
+
+            // 1. Fade in at the center
+            alpha.animateTo(1f, animationSpec = tween(fadeDuration))
+
+            val speed = 10f // dp per second
+
+            // 2. Move to a random point 3 to 7 times
+            for (i in 1..Random.nextInt(3, 7)) {
+                val (randomX, randomY) = randomPointInCircle(effectiveRadius)
+                val distanceToRandom = sqrt(randomX.value.pow(2) + randomY.value.pow(2)).toFloat()
+
+                val travelDuration = ((distanceToRandom / speed) * 1000).toInt().coerceAtLeast(1000)
+
+                duration = travelDuration
+                targetOffsetX = randomX
+                targetOffsetY = randomY
+
+                // Wait for travel and a pause
+                delay(travelDuration.toLong() + Random.nextLong(500, 1500))
+            }
+
+            // 3. Move back to the center
+            val (randomX, randomY) = randomPointInCircle(effectiveRadius)
+            val distanceToCenter = sqrt(randomX.value.pow(2) + randomY.value.pow(2)).toFloat()
+            val travelDuration = ((distanceToCenter / speed) * 1000).toInt().coerceAtLeast(1000)
+
+            duration = travelDuration
+            targetOffsetX = Random.nextInt(-5, 5).dp
+            targetOffsetY = Random.nextInt(-5, 5).dp
+
+            delay(travelDuration.toLong())
+
+            // 4. Fade out at the center
+            alpha.animateTo(0f, animationSpec = tween(fadeDuration))
+
+            // 5. Disappear for 7 seconds
+            delay(7000)
+        }
+    }
+
+    AsyncImage(
+        model = ImageRequest.Builder(LocalContext.current)
+            .data("file:///android_asset/pixel_ant.png")
+            .build(),
+        contentDescription = "Pixel Ant",
         modifier = Modifier
+            .graphicsLayer { this.alpha = alpha.value }
             .size(size)
-            .align(
-                when (baseAlignment) {
-                    Alignment.TopStart -> Alignment.TopStart
-                    Alignment.TopCenter -> Alignment.TopCenter
-                    Alignment.TopEnd -> Alignment.TopEnd
-                    Alignment.CenterStart -> Alignment.CenterStart
-                    Alignment.Center -> Alignment.Center
-                    Alignment.CenterEnd -> Alignment.CenterEnd
-                    Alignment.BottomStart -> Alignment.BottomStart
-                    Alignment.BottomCenter -> Alignment.BottomCenter
-                    Alignment.BottomEnd -> Alignment.BottomEnd
-                    else -> baseAlignment
-                }
-            )
-            .offset(x = offsetX, y = offsetY)
-            .clip(CircleShape)
-            .background(color)
+            .align(Alignment.Center)
+            .offset(x = animatedOffsetX, y = animatedOffsetY)
     )
 }
 
@@ -815,25 +885,6 @@ fun BadgeChip(
                 fontWeight = FontWeight.SemiBold
             )
         }
-    }
-}
-
-@Composable
-fun SoilStrip() {
-    Box(
-        modifier = Modifier
-            .fillMaxWidth()
-            .height(40.dp)
-            .clip(RoundedCornerShape(topStart = 12.dp, topEnd = 12.dp))
-            .background(TrakSoilStrip),
-        contentAlignment = Alignment.Center
-    ) {
-        Text(
-            text = "Ant colony biome",
-            color = Color(0xFFF5E3C7),
-            fontSize = 12.sp,
-            textAlign = TextAlign.Center
-        )
     }
 }
 
