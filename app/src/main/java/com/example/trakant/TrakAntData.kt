@@ -158,6 +158,26 @@ object UserManager {
         return user
     }
 
+    fun completeDebugQuest(context: Context, user: UserData, type: QuestType): UserData {
+        val xpAmount = type.baseXp
+        val source = "Quête ${type.title} (Debug)"
+        val date = SimpleDateFormat("dd/MM/yyyy", Locale.getDefault()).format(Date())
+
+        // Mise à jour de l'XP et de l'historique
+        user.xp += xpAmount
+        user.history.add(HistoryEntry(source, date, xpAmount))
+
+        // Vérification et mise à jour du niveau/taille de la colonie
+        val newLevel = 1 + (user.xp / 100)
+        if (newLevel > user.level) {
+            user.level = newLevel
+            user.colonySize = user.level // Mise à jour de la taille de la colonie
+        }
+
+        saveUser(context, user)
+        return user
+    }
+
     fun resetUser(context: Context, user: UserData): UserData {
         user.xp = 0
         user.level = 1

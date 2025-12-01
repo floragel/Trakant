@@ -128,17 +128,17 @@ fun MainStatsCard(userData: UserData) {
             verticalAlignment = Alignment.CenterVertically
         ) {
             Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(12.dp)) {
-                // Mapping label -> QuestType (ajuste selon ta sémantique)
+                // Mapping label -> QuestType
                 HabitWithProgress("Fitness", calcProgressForQuestType(QuestType.SPORT), TrakLevelBar)
-                HabitWithProgress("Study", calcProgressForQuestType(QuestType.READING), TrakRed)
-                HabitWithProgress("Sleep", calcProgressForQuestType(QuestType.SLEEP_WELL), TrakPurple)
-                HabitWithProgress("Book", calcProgressForQuestType(QuestType.READING), TrakYellow)
+                HabitWithProgress("Hydratation", calcProgressForQuestType(QuestType.HYDRATION), TrakBlue)
+                HabitWithProgress("Sommeil", calcProgressForQuestType(QuestType.SLEEP_WELL), TrakPurple)
+                HabitWithProgress("Lecture", calcProgressForQuestType(QuestType.READING), TrakRed)
             }
             Column(
                 modifier = Modifier.weight(1f),
                 horizontalAlignment = Alignment.CenterHorizontally
             ) {
-                AntPlanet(Modifier.fillMaxWidth().aspectRatio(1f))
+                AntPlanet(Modifier.fillMaxWidth().aspectRatio(1f), userData.colonySize)
                 Spacer(Modifier.height(8.dp))
                 Text("Colony: ${userData.colonySize} ants", color = TrakTextDark, fontSize = 12.sp, fontWeight = FontWeight.Medium)
             }
