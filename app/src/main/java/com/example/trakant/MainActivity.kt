@@ -307,10 +307,6 @@ fun HomeScreen(userData: UserData, onRetroactiveAdd: (QuestType, String) -> Unit
             Spacer(Modifier.height(16.dp))
         }
 
-        item {
-            SoilStrip()
-            Spacer(Modifier.height(40.dp)) // Padding pour le bas
-        }
     }
 
     if (showRetroDialog) {
@@ -902,6 +898,8 @@ private fun randomPointInCircle(radius: Dp): Pair<Dp, Dp> {
 // Planète colonie en pixel-style simplifié (vert + sol + points fourmis)
 @Composable
 fun AntPlanet(modifier: Modifier = Modifier, antNumber: Int = 10) {
+    var img: Int = antNumber/10 + 1
+    if (img > 4){img = 4}
     BoxWithConstraints(modifier) {
         val planetRadius = maxWidth / 2
         Box(
@@ -913,7 +911,7 @@ fun AntPlanet(modifier: Modifier = Modifier, antNumber: Int = 10) {
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data("file:///android_asset/house_lvl_1.png")
+                    .data("file:///android_asset/house_lvl_$img.png")
                     .build(),
                 contentDescription = "Pixel House",
                 modifier = Modifier

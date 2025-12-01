@@ -108,13 +108,13 @@ fun MainStatsCard(userData: UserData) {
         val count = userData.history.count { entry ->
             try {
                 val d = sdf.parse(entry.date)
-                d != null && !d.before(windowStart) && entry.typeName == type.name
+                d != null && !d.before(windowStart) && entry.typeName == type.title
             } catch (e: Exception) {
                 false
             }
         }
         // On considère 1 action par jour comme l'objectif → progress ∈ [0,1]
-        return (count.toFloat() / windowDays.toFloat()).coerceIn(0f, 1f)
+        return (count.toFloat() / windowDays.toFloat()).coerceIn(0f, 5f)
     }
 
     Card(
@@ -176,6 +176,5 @@ fun SoilStrip() {
             .background(TrakSoilStrip),
         contentAlignment = Alignment.Center
     ) {
-        Text("Ant colony biome", color = Color(0xFFF5E3C7), fontSize = 12.sp, textAlign = TextAlign.Center)
     }
 }
