@@ -348,10 +348,6 @@ fun HomeScreen(userData: UserData, onRetroactiveAdd: (QuestType, String) -> Unit
             Spacer(Modifier.height(16.dp))
         }
 
-        item {
-            SoilStrip()
-            Spacer(Modifier.height(40.dp)) // Padding pour le bas
-        }
     }
 
     if (showRetroDialog) {
@@ -954,7 +950,7 @@ fun AntPlanet(modifier: Modifier = Modifier, antNumber: Int = 10) {
         ) {
             AsyncImage(
                 model = ImageRequest.Builder(LocalContext.current)
-                    .data("file:///android_asset/house_lvl_1.png")
+                    .data("file:///android_asset/house_lvl_$img.png")
                     .build(),
                 contentDescription = "Pixel House",
                 modifier = Modifier
