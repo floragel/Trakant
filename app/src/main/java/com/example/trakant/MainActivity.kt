@@ -4,6 +4,9 @@ package com.example.trakant
 import android.content.Intent
 import androidx.activity.compose.BackHandler
 import androidx.compose.ui.platform.LocalContext
+import android.widget.Toast
+import android.os.Bundle
+import androidx.activity.ComponentActivity
 import androidx.activity.compose.setContent
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.animateDpAsState
@@ -12,7 +15,10 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
+import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.Cake
 import androidx.compose.material.icons.filled.Check
@@ -36,10 +42,6 @@ import coil.compose.AsyncImage
 import coil.request.ImageRequest
 import kotlinx.coroutines.delay
 import kotlin.random.Random
-import kotlin.math.sqrt
-import kotlin.math.cos
-import kotlin.math.sin
-import kotlin.math.pow
 import android.app.Application
 import android.app.DatePickerDialog
 import android.os.Bundle
@@ -59,12 +61,8 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
 import androidx.compose.material.icons.automirrored.filled.TrendingUp
 import androidx.compose.material.icons.filled.*
-import androidx.compose.material3.*
-import androidx.compose.runtime.*
-import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.SolidColor
@@ -87,6 +85,14 @@ import java.util.Calendar
 import java.text.SimpleDateFormat
 import java.util.Date
 import java.util.Locale
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.tooling.preview.Preview
+import androidx.compose.ui.unit.Dp
+import kotlin.math.sqrt
+import kotlin.math.cos
+import kotlin.math.sin
+import kotlin.math.pow
 
 // --- VIEWMODEL (Pont entre UI et Database) ---
 class MainViewModel(application: Application) : AndroidViewModel(application) {
@@ -114,6 +120,8 @@ class MainActivity : ComponentActivity() {
         super.onCreate(savedInstanceState)
         // CRÉATION DU CANAL DE NOTIFICATION (doit être fait au démarrage)
         createNotificationChannel(this)
+        // Planifier les alarmes si elles ne sont pas déjà planifiées
+        scheduleDailyNotifications(this)
 
         setContent {
             MaterialTheme {
@@ -172,6 +180,39 @@ fun TrakAntApp() {
     }
 
     var currentTab by rememberSaveable { mutableStateOf(TrakTab.HOME) }
+
+    if (userData != null) {
+        TrakAntAppContent(
+            userData = userData,
+            gameData = gameData,
+            currentTab = currentTab,
+            onTabSelected = { currentTab = it },
+            onSettingsChanged = {
+                 refreshData()
+            }
+        )
+    } else {
+        // Ecran de chargement simple
+        Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+            CircularProgressIndicator(color = TrakLevelBar)
+        }
+    }
+}
+
+@Composable
+fun TrakAntAppContent(
+    userData: UserData,
+    gameData: GameData,
+    currentTab: TrakTab,
+    onTabSelected: (TrakTab) -> Unit,
+    onSettingsChanged: () -> Unit
+) {
+    val context = LocalContext.current
+
+    // Gestion du bouton Retour : Si on n'est pas sur la Home, on y retourne
+    BackHandler(enabled = currentTab != TrakTab.HOME) {
+        onTabSelected(TrakTab.HOME)
+    }
 
     Scaffold(
         containerColor = TrakBackground,
@@ -1012,4 +1053,120 @@ private fun BoxScope.PixelAnt(
             .align(Alignment.Center)
             .offset(x = animatedOffsetX, y = animatedOffsetY)
     )
+}
+
+@Composable
+fun BadgesGrid() {
+    Column(
+        verticalArrangement = Arrangement.spacedBy(8.dp)
+    ) {
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            BadgeChip(
+                label = "Streak 7 days",
+                color = TrakRed,
+                modifier = Modifier.weight(1f)
+            )
+            BadgeChip(
+                label = "Bookworm",
+                color = TrakBlue,
+                modifier = Modifier.weight(1f)
+            )
+        }
+        Row(
+            modifier = Modifier.fillMaxWidth(),
+            horizontalArrangement = Arrangement.spacedBy(8.dp)
+        ) {
+            BadgeChip(
+                label = "Gym Rat",
+                color = TrakYellow,
+                modifier = Modifier.weight(1f)
+            )
+            BadgeChip(
+                label = "Sleep Master",
+                color = TrakPurple,
+                modifier = Modifier.weight(1f)
+            )
+        }
+    }
+}
+
+@Composable
+fun BadgeChip(
+    label: String,
+    color: Color,
+    modifier: Modifier = Modifier
+) {
+    Card(
+        colors = CardDefaults.cardColors(containerColor = color),
+        shape = RoundedCornerShape(14.dp),
+        modifier = modifier
+            .height(48.dp)
+    ) {
+        Box(
+            modifier = Modifier.fillMaxSize(),
+            contentAlignment = Alignment.CenterStart
+        ) {
+            Text(
+                text = label,
+                color = Color.White,
+                modifier = Modifier.padding(horizontal = 16.dp),
+                fontSize = 14.sp,
+                fontWeight = FontWeight.SemiBold
+            )
+        }
+    }
+}
+
+// ---------- ÉCRANS DE L'APPLICATION ----------
+
+@Composable
+fun QuestsScreen() {
+    // Page simple pour les quêtes
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Page des Quêtes", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TrakTextDark)
+    }
+}
+
+@Composable
+fun GraphsScreen() {
+    // Page simple pour les graphiques
+    Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+        Text("Page des Graphiques", fontSize = 24.sp, fontWeight = FontWeight.Bold, color = TrakTextDark)
+    }
+}
+
+@Preview(showBackground = true)
+@Composable
+fun TrakAntAppPreview() {
+    val fakeUser = UserData(
+        userId = "preview_user",
+        name = "Preview Lumi",
+        age = 20,
+        xp = 430,
+        level = 12,
+        colonySize = 12,
+        completedQuests = mutableListOf(),
+        badgesUnlocked = mutableListOf(),
+        settings = UserSettings(notificationsEnabled = true)
+    )
+    
+    // Fake GameData pour la preview
+    val fakeGameData = GameData(
+        missions = listOf(),
+        quests = listOf(),
+        badges = listOf()
+    )
+
+    MaterialTheme {
+        TrakAntAppContent(
+            userData = fakeUser,
+            gameData = fakeGameData,
+            currentTab = TrakTab.SETTINGS,
+            onTabSelected = {},
+            onSettingsChanged = {}
+        )
+    }
 }

@@ -1,0 +1,17 @@
+{
+  "users": [
+    {
+      "userId": "16f08391",
+      "name": "Alban",
+      "xp": 0,
+      "level": 4,
+      "colonySize": 1,
+      "completedQuests": [],
+      "badgesUnlocked": [],
+      "settings": {
+        "biome": "forest",
+        "notifications": true
+      }
+    }
+  ]
+}
