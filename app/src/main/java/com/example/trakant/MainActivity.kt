@@ -925,6 +925,86 @@ fun AddQuestDialog(onDismiss: () -> Unit, onAdd: (QuestType, String?) -> Unit) {
     )
 }
 
+@Composable
+fun MainStatsCard(
+    userData: UserData,
+    gameData: GameData
+) {
+    // Fonction helper pour calculer le score/progrès par mission
+    // Ici on fait un ratio simple : (nombre de quêtes finies de ce type) / 10 (cap arbitraire)
+    fun calculateProgress(missionId: String): Float {
+        val count = userData.completedQuests.count { completed ->
+            val questDef = gameData.quests.find { it.id == completed.questId }
+            questDef?.missionId == missionId
+        }
+        // On cap à 1.0f (10 quêtes = 100%)
+        return (count / 10f).coerceIn(0f, 1f)
+    }
+
+    Card(
+        colors = CardDefaults.cardColors(containerColor = TrakCreamCard),
+        shape = RoundedCornerShape(18.dp),
+        modifier = Modifier
+            .fillMaxWidth()
+            .heightIn(min = 230.dp)
+    ) {
+        Row(
+            modifier = Modifier
+                .fillMaxWidth()
+                .padding(16.dp),
+            horizontalArrangement = Arrangement.spacedBy(16.dp),
+            verticalAlignment = Alignment.CenterVertically
+        ) {
+            // --- Colonne gauche : 4 paramètres avec barres ---
+            Column(
+                modifier = Modifier.weight(1f),
+                verticalArrangement = Arrangement.spacedBy(12.dp)
+            ) {
+                HabitWithProgress(
+                    title = "Fitness",
+                    progress = calculateProgress("fitness"),
+                    color = TrakLevelBar
+                )
+                HabitWithProgress(
+                    title = "Study",
+                    progress = calculateProgress("study"),
+                    color = TrakRed
+                )
+                HabitWithProgress(
+                    title = "Sleep",
+                    progress = calculateProgress("sleep"),
+                    color = TrakPurple
+                )
+                HabitWithProgress(
+                    title = "Book",
+                    progress = calculateProgress("book"),
+                    color = TrakYellow
+                )
+            }
+
+            // --- Droite : planète colonie ---
+            Column(
+                modifier = Modifier
+                    .weight(1f),
+                horizontalAlignment = Alignment.CenterHorizontally,
+                verticalArrangement = Arrangement.Center
+            ) {
+                AntPlanet(
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .aspectRatio(1f),
+                    antNumber = "${userData.colonySize}".toInt()
+                )
+                Spacer(Modifier.height(8.dp))
+                OutlinedTextField(value = note, onValueChange = { note = it }, label = { Text("Note") })
+            }
+        },
+        confirmButton = { Button(onClick = { onAdd(selectedType, note) }, colors = ButtonDefaults.buttonColors(containerColor = TrakLevelBar)) { Text("Ajouter") } },
+        dismissButton = { TextButton(onClick = onDismiss) { Text("Annuler") } },
+        containerColor = TrakCreamCard
+    }
+}
+
 
 private fun randomPointInCircle(radius: Dp): Pair<Dp, Dp> {
     val r = radius.value * sqrt(Random.nextDouble())
